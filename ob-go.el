@@ -107,7 +107,7 @@ called by `org-babel-execute-src-block'"
          (coding-system-for-read 'utf-8) ;; use utf-8 with subprocesses
          (coding-system-for-write 'utf-8))
     (with-temp-file tmp-src-file (insert full-body))
-    (if-let ((results
+    (let ((results
 	      (org-babel-eval
 	       (format "%s run %s \"%s\" %s"
 		       org-babel-go-command
