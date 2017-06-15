@@ -268,6 +268,7 @@ of the same value."
   (cond
    ((integerp val) 'integerp)
    ((floatp val) 'floatp)
+   ((and (listp val) (listp (car val))) 'stringp)
    ((or (listp val) (vectorp val))
     (let ((type nil))
       (mapc (lambda (v)
