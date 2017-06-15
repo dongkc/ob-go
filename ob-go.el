@@ -1,3 +1,4 @@
+
 ;;; ob-go.el --- org-babel functions for go evaluation
 
 ;; Copyright (C) 2012 K. Adam Christensen
@@ -82,6 +83,7 @@
 (defun org-babel-expand-body:go (body params &optional processed-params)
   "Expand BODY according to PARAMS, return the expanded body."
   (let* ((vars (org-babel-go-get-var params))
+         (colnames (cdr (assq :colname-names params)))
          (main-p (not (string= (cdr (assoc :main params)) "no")))
          (imports (or (cdr (assoc :imports params))
                       (org-babel-read (org-entry-get nil "imports" t))))
@@ -89,9 +91,13 @@
                       (org-babel-read (org-entry-get nil "package" t))))
          (body (if main-p (org-babel-go-ensure-main-wrap body) body))
          )
-    (org-babel-go-custom-vars (org-babel-go-custom-imports (org-babel-go-ensure-package body package)
-                                                           imports)
-                              vars)))
+    (org-babel-go-custom-colnames
+     (org-babel-go-custom-vars
+      (org-babel-go-custom-imports
+       (org-babel-go-ensure-package body package)
+       imports)
+      vars)
+     colnames)))
 
 (defun org-babel-execute:go (body params)
   "Execute a block of Template code with org-babel. This function is
@@ -195,7 +201,17 @@ support for sessions"
   "Append custom variables at bottom."
   (if (=  (length vars) 0)
       body
-    (concat body "\n" (mapconcat 'org-babel-go-var-to-go vars "\n"))))
+    (concat body "\n" (mapconcat 'org-babel-go-var-to-go vars "\n") "\n")))
+
+(defun org-babel-go-custom-colnames (body colnames)
+  (if colnames
+    (concat
+     body
+     "\n"
+     (concat (org-babel-go-utility-header-to-go) "\n\n")
+     (mapconcat 'org-babel-go-header-to-go colnames "\n"))
+    body)
+  )
 
 (defun org-babel-go-get-var (params)
   "org-babel-get-header was removed in org version 8.3.3"
@@ -218,14 +234,118 @@ support for sessions"
     (buffer-string)))
 
 (defun org-babel-go-var-to-go (pair)
-  "Convert an elisp var into a string of go source code
-specifying a var of the same value."
+  "Convert an elisp val into a string of go code specifying a var
+of the same value."
+  ;; TODO list support
   (let ((var (car pair))
         (val (cdr pair)))
     (when (symbolp val)
-      (setq val (symbol-name val)))
-    ;; TODO(pope): Handle tables and lists.
-    (format "var %S = %S" var val)))
+      (setq val (symbol-name val))
+      (when (= (length val) 1)
+        (setq val (string-to-char val))))
+    (let* ((type-data (org-babel-go-val-to-go-type val))
+           (type (car type-data))
+           (formated (org-babel-go-format-val type-data val))
+           (prefix (car formated))
+           (data (cdr formated)))
+      (format "var %s %s = %s"
+              var
+              (concat prefix type)
+              data))))
+
+(defun org-babel-go-format-val (type val)
+  "Handle the FORMAT part of TYPE with the data from VAL."
+  (let ((format-data (cadr type)))
+    (if (stringp format-data)
+        (cons "" (format format-data val))
+      (funcall format-data val))))
+
+(defun org-babel-go-val-to-base-type (val)
+  "Determine the base type of VAL which may be
+`integerp' if all base values are integers
+`floatp' if all base values are either floating points or integers
+`stringp' otherwise."
+  (cond
+   ((integerp val) 'integerp)
+   ((floatp val) 'floatp)
+   ((or (listp val) (vectorp val))
+    (let ((type nil))
+      (mapc (lambda (v)
+              (pcase (org-babel-go-val-to-base-type v)
+                (`stringp (setq type 'stringp))
+                (`floatp
+                 (unless (setq type 'floatp)))
+                (`integerp
+                 (unless type (setq type 'integerp)))))
+            val)
+      type))
+   (t 'stringp)))
+
+(defun org-babel-go-val-to-go-type (val)
+  "Determine the type of VAL.
+Return a list (TYPE-NAME FORMAT).  TYPE-NAME should be the name of the type.
+FORMAT can be either a format string or a function which is called with VAL."
+  (let* ((basetype (org-babel-go-val-to-base-type val))
+         (type
+          (pcase basetype
+            (`integerp '("int" "%d"))
+            (`floatp '("float32" "%f"))
+            (`stringp '("string" "\"%s\""))
+            (_ (error "unknown type %S" basetype)))))
+    (cond
+     ((integerp val) type) ;; an integer declared in the #+begin_src line
+     ((floatp val) type) ;; a numeric declared in the #+begin_src line
+     ((and (listp val) (listp (car val))) ;; a table
+      `(,(car type)
+        (lambda (val)
+          (cons "[][]"
+                (concat "[][]string{\n"
+                        (mapconcat
+                         (lambda (v)
+                           (concat
+                            " []string{"
+                            (mapconcat (lambda (w) (format ,(cadr type) w)) v ",")
+                            "},"))
+                         val
+                         "\n")
+                        "\n}")))))
+     ((or (listp val) (vectorp val)) ;; a list declared in the #+begin_src line
+      `(,(car type)
+        (lambda (val)
+          (cons "[]"
+                (concat "[]" ,(car type) "{"
+                        (mapconcat (lambda (v) (format ,(cadr type) v)) val ",")
+                        "}")))))
+     (t ;; treat unknown types as string
+      type))))
+
+(defun org-babel-go-utility-header-to-go ()
+  "Generate a utility function to convert a column name into a column number."
+  "func get_column_num(header []string, column string) int {
+  for index, _ := range header {
+    if header[index] == column {
+       return index
+    }
+  }
+  return -1
+}")
+
+(defun org-babel-go-header-to-go (head)
+  "Convert an elisp list of header table into a go vector
+specifying a variable with the name of the table."
+  (let ((table (car head))
+        (headers (cdr head)))
+    (concat
+     (format
+      "var %s_header []string = []string{%s}"
+      table
+      (mapconcat (lambda (h) (format "%S" h)) headers ","))
+     "\n"
+     (format
+      "func %s_helper(row int, col string) string {
+  return %s[row][get_column_num(%s_header,col)]
+}"
+      table table table))))
 
 (provide 'ob-go)
 ;;; ob-go.el ends here
