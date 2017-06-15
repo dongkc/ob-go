@@ -117,13 +117,19 @@
 		      (org-babel-next-src-block 1)
 		      (should (equal '((1) (2)) (org-babel-execute-src-block))))))
 
-;; ob-go doesn't handle list variables yet
-;; (ert-deftest ob-go/list-var ()
-;;   "Test of a list input variable"
-;;   (if (executable-find org-babel-go-command)
-;;       (org-test-at-id "15000dad-5af1-45e3-ac80-a371335866dc"
-;; 		      (org-babel-next-src-block 1)
-;; 		      (should (string= "abcdef2" (org-babel-execute-src-block))))))
+(ert-deftest ob-go/list-var ()
+  "Test of a list input variable"
+  (if (executable-find org-babel-go-command)
+      (org-test-at-id "15000dad-5af1-45e3-ac80-a371335866dc"
+		      (org-babel-next-src-block 1)
+		      (should (string-equal "abcdef2" (org-babel-execute-src-block))))))
+
+(ert-deftest ob-go/table-var ()
+  "Test of a list input variable"
+  (if (executable-find org-babel-go-command)
+      (org-test-at-id "15000dad-5af1-45e3-ac80-a371335866dc"
+                      (org-babel-next-src-block 2)
+                      (should (string-equal "[[1 2] [3 4]]" (org-babel-execute-src-block))))))
 
 (ert-deftest ob-go/imports ()
   "Test the imports option"

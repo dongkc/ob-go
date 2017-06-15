@@ -1,6 +1,9 @@
 #+TITLE: Readme
 
 * Introduction
+  :PROPERTIES:
+  :ID:       da2e9d5d-03e9-412e-83df-62e648d9064e
+  :END:
 
   =ob-go= enables [[http://orgmode.org/worg/org-contrib/babel/intro.html][Org-Babel]] support for evaluating [[http://golang.org/][go]] code. It was
   created based on the usage of [[http://orgmode.org/worg/org-contrib/babel/languages/ob-doc-C.html][ob-C]]. The go code is compiled and run
@@ -17,6 +20,9 @@
   : : Hello, 世界
 
 * Language Specific Header Arguments
+  :PROPERTIES:
+  :ID:       816d9b52-85d8-4c79-b67f-43a0435c9532
+  :END:
 
   In addition to the normal header arguments for Babel, below are some some
   headers specific to go.
@@ -35,11 +41,18 @@
                   package is declared.
   - =:var= :: `ob-go' also supports Babel variables with some limitations. See
               `ob-go' for more information about some of the limitations using
-              =:var=.
+              =:var=. As a result of my efforts, now `ob-go` can handle /table/ and /list/ .
+              Maybe not elegant, but really can work.
 
 * Additional Examples
+  :PROPERTIES:
+  :ID:       02dd099f-e8d9-4575-8b12-83c04de44077
+  :END:
 
 ** Multiple Imports
+   :PROPERTIES:
+   :ID:       0b289a17-f3a2-4138-8325-76c46e55e73f
+   :END:
 
    : #+begin_src go :imports '("fmt" "time")
    :   fmt.Println("Current Time:", time.Now())
@@ -47,8 +60,10 @@
    :
    : #+RESULTS:
    : : Current Time: 2012-04-29 11:47:36.933733 -0700 PDT
-
 ** Concurrent Prime Sieve
+   :PROPERTIES:
+   :ID:       fec4be69-5ac9-4454-b199-7a692bd82898
+   :END:
 
    : #+begin_src go
    :   // A concurrent prime sieve
@@ -101,8 +116,40 @@
    :   23
    :   29
    : #+end_example
+** Table and List
+   :PROPERTIES:
+   :ID:       c68adffb-796c-4003-82da-c7107e8af8ed
+   :END:
+   : #+NAME: tb-phone-book
+   : | name  |    tel |
+   : |-------+--------|
+   : | brant | 170... |
+   : | ou    | 138... |
+
+   : #+BEGIN_SRC go :imports "fmt"  :var tb=tb-phone-book
+   :   fmt.Println(tb)
+   :   fmt.Println(tb_helper(1, "name"))
+   : #+END_SRC
+
+   : #+RESULTS:
+   : : [[brant 170...] [ou 138...]]
+   : : ou
+
+   : #+BEGIN_SRC go :imports "fmt" :var int_lst='(1 2 3)  float_lst='(1.0 2.2 3.3) string_lst='("a" "b" "c")
+   :   fmt.Println(int_lst)
+   :   fmt.Println(float_lst)
+   :   fmt.Println(string_lst)
+   : #+END_SRC
+
+   : #+RESULTS:
+   : : [1 2 3]
+   : : [1 2.2 3.3]
+   : : [a b c]
 
 * Running tests
+  :PROPERTIES:
+  :ID:       8c3da9b9-268a-49ea-88f1-acce7d6183d3
+  :END:
 
   Tests can be executed by /make test/ or invoking emacs directly with
   the command-line below:
