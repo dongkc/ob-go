@@ -97,7 +97,7 @@
        (org-babel-go-ensure-package body package)
        imports)
       vars)
-     colnames)))
+     colnames vars)))
 
 (defun org-babel-execute:go (body params)
   "Execute a block of Template code with org-babel. This function is
@@ -203,13 +203,13 @@ support for sessions"
       body
     (concat body "\n" (mapconcat 'org-babel-go-var-to-go vars "\n") "\n")))
 
-(defun org-babel-go-custom-colnames (body colnames)
+(defun org-babel-go-custom-colnames (body colnames vars)
   (if colnames
-    (concat
-     body
-     "\n"
-     (concat (org-babel-go-utility-header-to-go) "\n\n")
-     (mapconcat 'org-babel-go-header-to-go colnames "\n"))
+      (concat
+       body
+       "\n"
+       (concat (org-babel-go-utility-header-to-go) "\n\n")
+       (mapconcat (lambda (cols) (org-babel-go-header-to-go cols vars)) colnames "\n"))
     body)
   )
 
@@ -268,14 +268,14 @@ of the same value."
   (cond
    ((integerp val) 'integerp)
    ((floatp val) 'floatp)
-   ((and (listp val) (listp (car val))) 'stringp)
+   ;; ((and (listp val) (listp (car val))) 'stringp)
    ((or (listp val) (vectorp val))
     (let ((type nil))
       (mapc (lambda (v)
               (pcase (org-babel-go-val-to-base-type v)
                 (`stringp (setq type 'stringp))
                 (`floatp
-                 (unless (setq type 'floatp)))
+                 (unless type (setq type 'floatp)))
                 (`integerp
                  (unless type (setq type 'integerp)))))
             val)
@@ -300,11 +300,11 @@ FORMAT can be either a format string or a function which is called with VAL."
       `(,(car type)
         (lambda (val)
           (cons "[][]"
-                (concat "[][]string{\n"
+                (concat "[][]" ,(car type) "{\n"
                         (mapconcat
                          (lambda (v)
                            (concat
-                            " []string{"
+                            " []" ,(car type) "{"
                             (mapconcat (lambda (w) (format ,(cadr type) w)) v ",")
                             "},"))
                          val
@@ -331,22 +331,37 @@ FORMAT can be either a format string or a function which is called with VAL."
   return -1
 }")
 
-(defun org-babel-go-header-to-go (head)
+(defun org-babel-go-table-to-var (table vars)
+  "Find the variables associated with the table."
+  (when vars
+    (if (equal (car (car vars)) table)
+        (car vars)
+      (org-babel-go-table-to-var table (cdr vars)))))
+
+(defun org-babel-go-header-to-go (head vars)
   "Convert an elisp list of header table into a go vector
 specifying a variable with the name of the table."
-  (let ((table (car head))
-        (headers (cdr head)))
+  (let* ((table (car head))
+         (headers (cdr head))
+         (var-pair (org-babel-go-table-to-var table vars))
+         (basetype (org-babel-go-val-to-base-type (cdr var-pair)))
+         (type
+          (pcase basetype
+            (`integerp "int")
+            (`floatp "float32")
+            (`stringp "string")
+            (_ (error "unknown type %S" basetype)))))
     (concat
      (format
       "var %s_header []string = []string{%s}"
       table
-      (mapconcat (lambda (h) (format "%S" h)) headers ","))
-     "\n"
+      (mapconcat (lambda (h) (format "\"%S\"" h)) headers ","))
+     "\n\n"
      (format
-      "func %s_helper(row int, col string) string {
+      "func %s_helper(row int, col string) %s {
   return %s[row][get_column_num(%s_header,col)]
 }"
-      table table table))))
+      table type table table))))
 
 (provide 'ob-go)
 ;;; ob-go.el ends here
