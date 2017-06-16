@@ -51,6 +51,7 @@
 	     (save-restriction ,@body)))
        (unless (or visited-p (not to-be-removed))
 	 (kill-buffer to-be-removed)))))
+
 (def-edebug-spec org-test-at-id (form body))
 
 (unless (featurep 'ob-go)
@@ -125,7 +126,7 @@
 		      (should (string-equal "abcdef2" (org-babel-execute-src-block))))))
 
 (ert-deftest ob-go/table-var ()
-  "Test of a list input variable"
+  "Test of a table input variable"
   (if (executable-find org-babel-go-command)
       (org-test-at-id "15000dad-5af1-45e3-ac80-a371335866dc"
                       (org-babel-next-src-block 2)
@@ -149,18 +150,17 @@
 
 
 (ert-deftest ob-go/packages ()
+  "Test the package option"
   (if (executable-find org-babel-go-command)
       (org-test-at-id "c44f7afe-d356-4293-ba83-9ac71c7e6049"
                       (org-babel-next-src-block 1)
-                      (should (string-equal "works"
-                                            (org-babel-execute-src-block))))))
+                      (should (string-equal "works" (org-babel-execute-src-block))))))
 
 (ert-deftest ob-go/regression1 ()
   (if (executable-find org-babel-go-command)
       (org-test-at-id "3f63c93d-6f17-478d-9817-e5c24a696689"
                       (org-babel-next-src-block 1)
-                      (should (string-equal "'h' and 'i'"
-                                            (org-babel-execute-src-block))))))
+                      (should (string-equal "'h' and 'i'" (org-babel-execute-src-block))))))
 
 (defun ob-go-test-runall ()
   (progn
