@@ -268,14 +268,14 @@ of the same value."
   (cond
    ((integerp val) 'integerp)
    ((floatp val) 'floatp)
-   ;; ((and (listp val) (listp (car val))) 'stringp)
    ((or (listp val) (vectorp val))
     (let ((type nil))
       (mapc (lambda (v)
               (pcase (org-babel-go-val-to-base-type v)
                 (`stringp (setq type 'stringp))
                 (`floatp
-                 (unless type (setq type 'floatp)))
+                 (if (or (not type) (eq type 'integerp))
+                     (setq type 'floatp)))
                 (`integerp
                  (unless type (setq type 'integerp)))))
             val)
