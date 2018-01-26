@@ -1,4 +1,3 @@
-
 ;;; ob-go.el --- org-babel functions for go evaluation
 
 ;; Copyright (C) 2012 K. Adam Christensen
@@ -215,11 +214,9 @@ support for sessions"
 
 (defun org-babel-go-get-var (params)
   "org-babel-get-header was removed in org version 8.3.3"
-  (let* ((fversion (org-version))
-         (version (string-to-number fversion)))
-    (if (< version 8.3)
-        (mapcar #'cdr (org-babel-get-header params :var))
-      (org-babel--get-vars params))))
+  (if (fboundp 'org-babel-get-header)
+      (mapcar #'cdr (org-babel-get-header params :var))
+    (org-babel--get-vars params)))
 
 (defun org-babel-go-gofmt (body)
   "Run gofmt over the body. Why not?"
@@ -355,7 +352,7 @@ specifying a variable with the name of the table."
      (format
       "var %s_header []string = []string{%s}"
       table
-      (mapconcat (lambda (h) (format "\"%S\"" h)) headers ","))
+      (mapconcat (lambda (h) (format "\"%s\"" h)) headers ","))
      "\n\n"
      (format
       "func %s_helper(row int, col string) %s {
