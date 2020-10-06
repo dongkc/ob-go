@@ -112,6 +112,12 @@ called by `org-babel-execute-src-block'"
          (coding-system-for-read 'utf-8) ;; use utf-8 with subprocesses
          (coding-system-for-write 'utf-8))
     (with-temp-file tmp-src-file (insert full-body))
+    ;; change default directory to babel-temporary directory
+    (cd org-babel-temporary-directory)
+    (if (not (file-exists-p
+              (concat org-babel-temporary-directory "/" "go.mod")))
+        (org-babel-eval
+         (format "go mod init example/m") ""))
     (let ((results
 	      (org-babel-eval
 	       (format "%s run %s \"%s\" %s"
